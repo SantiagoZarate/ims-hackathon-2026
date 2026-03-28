@@ -194,7 +194,7 @@ export function HomePage() {
   )
 
   return (
-    <main className="relative flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col items-center justify-center overflow-hidden px-6 py-10">
+    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-10">
       <div className="flex w-full max-w-[805px] flex-col items-center gap-8 text-center">
         <form
           onSubmit={handleSubmit}
