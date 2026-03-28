@@ -65,7 +65,7 @@ export function OnboardingOverlay({ onDismiss }: OnboardingOverlayProps) {
   }, [activeStep, onDismiss])
 
   return (
-    <div className="relative flex size-full flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+    <div className="relative flex size-full flex-col gap-4 p-4 sm:gap-6 sm:p-10">
       <h2
         id="onboarding-title"
         className="shrink-0 text-center text-lg font-medium tracking-tight text-white sm:text-xl"
@@ -117,9 +117,6 @@ export function OnboardingOverlay({ onDismiss }: OnboardingOverlayProps) {
                 </p>
                 <p className="text-lg font-semibold leading-tight text-white sm:text-2xl">
                   {step.title}
-                </p>
-                <p className="text-sm text-white/70 sm:text-base">
-                  {step.description}
                 </p>
               </div>
             </motion.div>
