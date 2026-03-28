@@ -16,21 +16,32 @@ export function PlatformLogos({ className }: PlatformLogosProps) {
         className
       )}
     >
-      {/* YouTube — left, slightly behind */}
+      {/* YouTube — left, slightly behind, floats up */}
       <div
-        className="absolute left-0 top-1/2 z-10 size-[65px] -translate-y-1/2 -rotate-8 rounded-xl bg-[#FF0000] p-2.5 shadow-md ring-2 ring-background sm:size-[70px] sm:p-3"
         aria-hidden
+        className="absolute left-0 top-1/2 z-10 size-[65px] -translate-y-1/2 -rotate-8 rounded-xl sm:size-[70px]"
+        style={{ animation: "floatUp 3s ease-in-out infinite" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/Youtube_logo.png" alt="" className="size-full object-contain" />
+        {/* red glow */}
+        <div className="absolute inset-0 rounded-xl bg-[#FF0000] opacity-60 blur-xl" />
+        <div className="relative size-full rounded-xl bg-[#FF0000] p-2.5 shadow-md ring-2 ring-background sm:p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/Youtube_logo.png" alt="" className="size-full object-contain" />
+        </div>
       </div>
-      {/* Spotify — right, on top, overlapping YouTube by ~40% */}
+
+      {/* Spotify — right, on top, floats down (opposite phase) */}
       <div
-        className="absolute left-[35px] top-1/2 z-20 size-[65px] -translate-y-1/2 rotate-8 rounded-xl bg-[#1DB954] p-2.5 shadow-md ring-2 ring-background sm:left-10 sm:size-[70px] sm:p-3"
         aria-hidden
+        className="absolute left-[35px] top-1/2 z-20 size-[65px] -translate-y-1/2 rotate-8 rounded-xl sm:left-10 sm:size-[70px]"
+        style={{ animation: "floatDown 3s ease-in-out infinite" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/81+(1).webp" alt="" className="size-full object-contain" />
+        {/* green glow */}
+        <div className="absolute inset-0 rounded-xl bg-[#1DB954] opacity-60 blur-xl" />
+        <div className="relative size-full rounded-xl bg-[#1DB954] p-2.5 shadow-md ring-2 ring-background sm:p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/81+(1).webp" alt="" className="size-full object-contain" />
+        </div>
       </div>
     </div>
   )

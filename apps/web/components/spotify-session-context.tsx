@@ -18,6 +18,7 @@ import {
 
 type SpotifySessionContextValue = {
   token: string | null
+  hydrated: boolean
   authError: string | null
   login: () => Promise<void>
   logout: () => void
@@ -31,6 +32,7 @@ const SpotifySessionContext = createContext<SpotifySessionContextValue | null>(
 
 export function SpotifySessionProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
+  const [hydrated, setHydrated] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
 
   const refreshToken = useCallback(() => {
@@ -39,6 +41,7 @@ export function SpotifySessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshToken()
+    setHydrated(true)
   }, [refreshToken])
 
   const login = useCallback(async () => {
@@ -64,13 +67,14 @@ export function SpotifySessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       token,
+      hydrated,
       authError,
       login,
       logout,
       clearAuthError,
       refreshToken,
     }),
-    [token, authError, login, logout, clearAuthError, refreshToken]
+    [token, hydrated, authError, login, logout, clearAuthError, refreshToken]
   )
 
   return (

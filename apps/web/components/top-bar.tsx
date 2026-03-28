@@ -7,7 +7,7 @@ import { useSpotifySession } from "@/components/spotify-session-context"
 import { cn } from "@/lib/utils"
 
 export function TopBar() {
-  const { token, login, logout } = useSpotifySession()
+  const { token, hydrated, login, logout } = useSpotifySession()
 
   return (
     <header className="shrink-0 border-b border-border px-6">
@@ -25,7 +25,7 @@ export function TopBar() {
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-          {token ? (
+          {!hydrated ? null : token ? (
             <>
               <span className="hidden text-xs text-muted-foreground sm:inline">
                 Spotify connected
@@ -51,7 +51,7 @@ export function TopBar() {
               <img src="/81+(1).webp" alt="" className="size-4 object-contain" />
               Log in with Spotify
             </Button>
-          )}
+          ) }
         </div>
       </div>
     </header>

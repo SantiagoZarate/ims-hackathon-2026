@@ -200,11 +200,11 @@ export function HomePage() {
           onSubmit={handleSubmit}
           className="flex w-full flex-col items-center gap-4"
         >
-          <PlatformLogos className="-mb-1" />
+          <PlatformLogos className="-mb-1 animate-enter animate-enter-1" />
           <label className="sr-only" htmlFor="youtube-url">
             YouTube URL
           </label>
-          <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl">
+          <div className="animate-enter animate-enter-2 relative w-full max-w-2xl overflow-hidden rounded-2xl">
             <Input
               id="youtube-url"
               name="youtube-url"
@@ -235,7 +235,7 @@ export function HomePage() {
               />
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="animate-enter animate-enter-3 flex flex-wrap items-center justify-center gap-2">
             <Drawer open={libraryOpen} onOpenChange={setLibraryOpen} position="bottom">
               <DrawerTrigger
                 render={
@@ -459,7 +459,7 @@ export function HomePage() {
           </div>
         </form>
 
-        <div className="space-y-1">
+        <div className="animate-enter animate-enter-4 space-y-1">
           <p className="font-heading text-balance text-xl font-medium tracking-tight sm:text-2xl">
             Paste a YouTube URL, get a Spotify playlist
           </p>
