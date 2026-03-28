@@ -1,10 +1,13 @@
 "use client"
 
-import { ArrowRight, ArrowSquareOut, Queue, Trash } from "@phosphor-icons/react"
+import { ArrowRight, ArrowSquareOut, Trash } from "@phosphor-icons/react"
+import { AnimatePresence, motion } from "motion/react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { useLibrary } from "@/components/library-context"
+import { OnboardingOverlay } from "@/components/onboarding-overlay"
 import { PlatformLogos } from "@/components/platform-logos"
 import { useSpotifySession } from "@/components/spotify-session-context"
 import { BorderBeam } from "@/components/ui/border-beam"
@@ -35,6 +38,8 @@ import {
 } from "@/lib/playlist-history"
 import { getStoredAccessToken } from "@/lib/spotify-auth"
 
+const ONBOARDING_EASE = [0.23, 1, 0.32, 1] as const
+
 type PlaylistInfo = Pick<
   SseDoneEvent,
   "playlist_url" | "playlist_id" | "playlist_name" | "chunks_processed" | "audd_requests"
@@ -52,10 +57,15 @@ export function HomePage() {
   const [progressMsg, setProgressMsg] = useState<string | null>(null)
   const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null)
   const songsRef = useRef<AnalyzeSong[]>([])
-  const [libraryOpen, setLibraryOpen] = useState(false)
+  const { libraryOpen, setLibraryOpen } = useLibrary()
   const [libraryItems, setLibraryItems] = useState<SavedPlaylist[]>([])
   const [historyTick, setHistoryTick] = useState(0)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(true)
+
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false)
+  }, [])
 
   const handleDeletePlaylist = useCallback((id: string) => {
     setRemovingId(id)
@@ -195,16 +205,42 @@ export function HomePage() {
 
   return (
     <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-10">
+      <AnimatePresence>
+        {showOnboarding ? (
+          <motion.div
+            key="onboarding"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="onboarding-title"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: ONBOARDING_EASE }}
+            className="fixed inset-0 z-50 flex flex-col bg-black"
+          >
+            <OnboardingOverlay onDismiss={dismissOnboarding} />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       <div className="flex w-full max-w-[805px] flex-col items-center gap-8 text-center">
         <form
           onSubmit={handleSubmit}
           className="flex w-full flex-col items-center gap-4"
         >
           <PlatformLogos className="-mb-1 animate-enter animate-enter-1" />
+          <div className="animate-enter animate-enter-2 space-y-1">
+            <p className="font-heading text-balance text-xl font-medium tracking-tight sm:text-2xl">
+              Paste a YouTube URL, get a Spotify playlist
+            </p>
+            <p className="text-balance text-sm text-muted-foreground">
+              We recognize the songs in the audio and add only those tracks to a
+              new playlist on your account.
+            </p>
+          </div>
           <label className="sr-only" htmlFor="youtube-url">
             YouTube URL
           </label>
-          <div className="animate-enter animate-enter-2 relative w-full max-w-2xl overflow-hidden rounded-2xl">
+          <div className="animate-enter animate-enter-3 relative w-full max-w-2xl overflow-hidden rounded-2xl">
             <Input
               id="youtube-url"
               name="youtube-url"
@@ -221,7 +257,7 @@ export function HomePage() {
               size="icon"
               disabled={loading || !token}
               aria-label="Create playlist"
-              className="absolute right-3 top-1/2 size-12 -translate-y-1/2"
+              className="absolute right-3 top-1/2 sm:size-12 -translate-y-1/2"
             >
               <ArrowRight className="size-6" weight="bold" />
             </Button>
@@ -235,21 +271,8 @@ export function HomePage() {
               />
             ) : null}
           </div>
-          <div className="animate-enter animate-enter-3 flex flex-wrap items-center justify-center gap-2">
+          <div className="animate-enter animate-enter-4 flex flex-wrap items-center justify-center gap-2">
             <Drawer open={libraryOpen} onOpenChange={setLibraryOpen} position="bottom">
-              <DrawerTrigger
-                render={
-                  <Button
-                    variant="secondary"
-                    size="icon-lg"
-                    type="button"
-                    disabled={!token}
-                    aria-label="Open playlist library"
-                  />
-                }
-              >
-                <Queue className="size-5" weight="bold" />
-              </DrawerTrigger>
               <DrawerPopup showBar className="h-[min(90vh,720px)]">
                 <div className="mx-auto flex w-full max-w-[805px] min-h-0 flex-1 flex-col">
                 <DrawerHeader>
@@ -458,16 +481,6 @@ export function HomePage() {
             </Drawer>
           </div>
         </form>
-
-        <div className="animate-enter animate-enter-4 space-y-1">
-          <p className="font-heading text-balance text-xl font-medium tracking-tight sm:text-2xl">
-            Paste a YouTube URL, get a Spotify playlist
-          </p>
-          <p className="text-balance text-sm text-muted-foreground">
-            We recognize the songs in the audio and add only those tracks to a
-            new playlist on your account.
-          </p>
-        </div>
 
         {error || authError ? (
           <p className="max-w-lg text-sm text-destructive" role="alert">

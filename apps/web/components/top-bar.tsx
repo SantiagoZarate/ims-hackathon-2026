@@ -1,13 +1,16 @@
 "use client"
 
+import { Queue } from "@phosphor-icons/react"
 import Link from "next/link"
 
-import { Button } from "@/components/ui/button"
+import { useLibrary } from "@/components/library-context"
 import { useSpotifySession } from "@/components/spotify-session-context"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export function TopBar() {
   const { token, hydrated, login, logout } = useSpotifySession()
+  const { setLibraryOpen } = useLibrary()
 
   return (
     <header className="shrink-0 border-b border-border px-6">
@@ -33,6 +36,15 @@ export function TopBar() {
               <Button type="button" variant="ghost" size="sm" onClick={logout}>
                 Log out
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                aria-label="Open playlist library"
+                onClick={() => setLibraryOpen(true)}
+              >
+                <Queue className="size-5" weight="bold" />
+              </Button>
             </>
           ) : (
             <Button
@@ -51,7 +63,7 @@ export function TopBar() {
               <img src="/81+(1).webp" alt="" className="size-4 object-contain" />
               Log in with Spotify
             </Button>
-          ) }
+          )}
         </div>
       </div>
     </header>
