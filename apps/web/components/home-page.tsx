@@ -4,19 +4,16 @@ import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
+import { useSpotifySession } from "@/components/spotify-session-context"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { analyzeYoutube, type AnalyzeResult } from "@/lib/api"
-import {
-  beginSpotifyLogin,
-  clearSpotifySession,
-  getStoredAccessToken,
-} from "@/lib/spotify-auth"
+import { getStoredAccessToken } from "@/lib/spotify-auth"
 
 export function HomePage() {
   const searchParams = useSearchParams()
-  const [token, setToken] = useState<string | null>(null)
+  const { token, authError, clearAuthError } = useSpotifySession()
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +26,6 @@ export function HomePage() {
     } else {
       console.log("[page] No Spotify token in sessionStorage — user not logged in")
     }
-    setToken(stored)
     const se = searchParams.get("spotify_error")
     if (se) {
       setError(decodeURIComponent(se))
@@ -37,20 +33,11 @@ export function HomePage() {
     }
   }, [searchParams])
 
-  const handleLogin = useCallback(async () => {
-    setError(null)
-    try {
-      await beginSpotifyLogin()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start Spotify login")
+  useEffect(() => {
+    if (!token) {
+      setResult(null)
     }
-  }, [])
-
-  const handleLogout = useCallback(() => {
-    clearSpotifySession()
-    setToken(null)
-    setResult(null)
-  }, [])
+  }, [token])
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -60,6 +47,7 @@ export function HomePage() {
         return
       }
       setError(null)
+      clearAuthError()
       setResult(null)
       setLoading(true)
       console.log("[page] Submitting URL:", youtubeUrl)
@@ -72,7 +60,7 @@ export function HomePage() {
         setLoading(false)
       }
     },
-    [token, youtubeUrl]
+    [token, youtubeUrl, clearAuthError]
   )
 
   return (
@@ -87,22 +75,6 @@ export function HomePage() {
             new playlist on your account.
           </p>
         </div>
-
-        {!token ? (
-          <div className="w-full max-w-md space-y-3 rounded-none border border-border bg-card p-5 text-left">
-            <p className="text-sm">Connect Spotify to create playlists.</p>
-            <Button type="button" onClick={handleLogin} className="w-full sm:w-auto">
-              Log in with Spotify
-            </Button>
-          </div>
-        ) : (
-          <div className="flex w-full max-w-md items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>Spotify connected</span>
-            <Button type="button" variant="ghost" size="sm" onClick={handleLogout}>
-              Log out
-            </Button>
-          </div>
-        )}
 
         <form
           onSubmit={handleSubmit}
@@ -120,26 +92,26 @@ export function HomePage() {
             value={youtubeUrl}
             onChange={(e) => setYoutubeUrl(e.target.value)}
             disabled={loading || !token}
-            className="h-auto min-h-14 w-full max-w-2xl px-5 py-4 text-base placeholder:text-muted-foreground/70 sm:min-h-16 sm:text-xl md:text-2xl md:py-5"
+            className="h-auto min-h-14 w-full max-w-2xl rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground/70 sm:min-h-16 sm:text-xl md:text-2xl md:py-5"
           />
           <Button
             type="submit"
             size="lg"
             disabled={loading || !token}
-            className="min-w-48"
+            className="min-w-48 rounded-xl px-6"
           >
             {loading ? "Working… (this can take a while)" : "Create playlist"}
           </Button>
         </form>
 
-        {error ? (
+        {error || authError ? (
           <p className="max-w-lg text-sm text-destructive" role="alert">
-            {error}
+            {error ?? authError}
           </p>
         ) : null}
 
         {result ? (
-          <div className="w-full max-w-2xl space-y-4 rounded-none border border-border bg-card p-5 text-left">
+          <div className="w-full max-w-2xl space-y-4 rounded-2xl border border-border bg-card p-5 text-left">
             <div>
               <h2 className="font-heading text-sm font-medium">
                 {result.playlist_name}
@@ -179,7 +151,7 @@ export function HomePage() {
         ) : null}
 
         <p className="text-xs text-muted-foreground font-mono">
-          Press <kbd className="px-1">d</kbd> for dark mode
+          Press <kbd className="rounded-md px-1.5 py-0.5">d</kbd> for dark mode
         </p>
       </div>
     </main>

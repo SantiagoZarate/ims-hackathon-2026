@@ -1,9 +1,11 @@
 import { Geist, Geist_Mono, Inter } from "next/font/google"
 
-import "./globals.css"
+import { SpotifySessionProvider } from "@/components/spotify-session-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TopBar } from "@/components/top-bar"
 import { cn } from "@/lib/utils"
+import Script from "next/script"
+import "./globals.css"
 
 const geistHeading = Geist({subsets:['latin'],variable:'--font-heading'});
 
@@ -25,10 +27,21 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable, geistHeading.variable)}
     >
+       <head>
+        {process.env.NODE_ENV === "development" && (
+          <Script
+            src="//unpkg.com/react-grab/dist/index.global.js"
+            crossOrigin="anonymous"
+            strategy="beforeInteractive"
+          />
+        )}
+      </head>
       <body className="flex min-h-svh flex-col">
         <ThemeProvider>
-          <TopBar />
-          {children}
+          <SpotifySessionProvider>
+            <TopBar />
+            {children}
+          </SpotifySessionProvider>
         </ThemeProvider>
       </body>
     </html>
