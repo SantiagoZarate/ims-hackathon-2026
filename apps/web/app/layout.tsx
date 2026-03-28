@@ -2,7 +2,8 @@ import { Geist, Geist_Mono, Inter } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { cn } from "@/lib/utils";
+import { TopBar } from "@/components/top-bar"
+import { cn } from "@/lib/utils"
 
 const geistHeading = Geist({subsets:['latin'],variable:'--font-heading'});
 
@@ -24,8 +25,11 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable, geistHeading.variable)}
     >
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
+      <body className="flex min-h-svh flex-col">
+        <ThemeProvider>
+          <TopBar />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

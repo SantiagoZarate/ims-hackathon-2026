@@ -1,0 +1,13 @@
+import { z } from "zod";
+
+const envSchema = z.object({
+  NEXT_PUBLIC_SPOTIFY_CLIENT_ID: z.string().min(1),
+  NEXT_PUBLIC_SPOTIFY_REDIRECT_URI: z.url(),
+  NEXT_PUBLIC_PYTHON_SERVICE_URL: z.url(),
+});
+
+export const env = envSchema.parse({
+  NEXT_PUBLIC_SPOTIFY_CLIENT_ID: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
+  NEXT_PUBLIC_SPOTIFY_REDIRECT_URI: process.env.NEXT_PUBLIC_SPOTIFY_REDIRECT_URI,
+  NEXT_PUBLIC_PYTHON_SERVICE_URL: process.env.NEXT_PUBLIC_PYTHON_SERVICE_URL,
+});

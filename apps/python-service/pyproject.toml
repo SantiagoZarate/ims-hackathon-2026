@@ -5,6 +5,10 @@ description = "FastAPI backend for ims-hackathon-2"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi[standard]>=0.115.0",
+  "httpx>=0.28.0",
+  "pydub>=0.25.1",
+  "python-dotenv>=1.0.0",
+  "yt-dlp>=2025.1.0",
 ]
 
 [tool.uv]
