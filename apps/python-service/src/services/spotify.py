@@ -1,7 +1,8 @@
-"""Spotify Web API: current user, create playlist, add tracks."""
+"""Spotify Web API: current user, create playlist, add tracks, fetch track metadata."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -85,3 +86,63 @@ async def add_tracks_to_playlist(
                 logger.error("[spotify] Add tracks error: %s %s", r.status_code, r.text)
             r.raise_for_status()
     logger.info("[spotify] Successfully added all tracks")
+
+
+def _pick_image_url(data: dict[str, Any]) -> str | None:
+    """Return the smallest available album art URL from a track object."""
+    try:
+        images: list[dict[str, Any]] = data["album"]["images"]
+        if not images:
+            return None
+        # images are sorted largest → smallest; pick the smallest (last)
+        return str(images[-1]["url"])
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
+async def _fetch_track_image(
+    client: httpx.AsyncClient,
+    track_id: str,
+    headers: dict[str, str],
+) -> tuple[str, str | None]:
+    """Fetch a single track and return (track_id, image_url)."""
+    try:
+        r = await client.get(f"{SPOTIFY_API}/tracks/{track_id}", headers=headers)
+        if r.status_code == 200:
+            return track_id, _pick_image_url(r.json())
+        logger.warning("[spotify] Track %s metadata returned %s", track_id, r.status_code)
+    except Exception as e:
+        logger.warning("[spotify] Failed to fetch track %s: %s", track_id, e)
+    return track_id, None
+
+
+async def get_single_track_image_url(track_id: str, access_token: str) -> str | None:
+    """Fetch album art for a single track (used in SSE streaming flow)."""
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        _, url = await _fetch_track_image(client, track_id, _bearer(access_token))
+        return url
+
+
+async def get_tracks_image_urls(
+    track_ids: list[str],
+    access_token: str,
+) -> dict[str, str | None]:
+    """
+    Fetch album art for up to N tracks in parallel.
+    Returns {track_id: image_url} (url may be None on failure).
+    """
+    if not track_ids:
+        return {}
+    headers = _bearer(access_token)
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        results = await asyncio.gather(
+            *[_fetch_track_image(client, tid, headers) for tid in track_ids],
+            return_exceptions=False,
+        )
+    mapping = {tid: url for tid, url in results}
+    logger.info(
+        "[spotify] Fetched album art for %d/%d track(s)",
+        sum(1 for url in mapping.values() if url),
+        len(track_ids),
+    )
+    return mapping

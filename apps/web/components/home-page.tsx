@@ -17,11 +17,21 @@ import {
   DrawerPopup,
   DrawerTitle,
 } from "@/components/ui/drawer"
+import { BorderBeam } from "@/components/ui/border-beam"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { analyzeYoutube, type AnalyzeResult } from "@/lib/api"
+import {
+  analyzeYoutubeStream,
+  type AnalyzeSong,
+  type SseDoneEvent,
+} from "@/lib/api"
 import { getStoredAccessToken } from "@/lib/spotify-auth"
 import { cn } from "@/lib/utils"
+
+type PlaylistInfo = Pick<
+  SseDoneEvent,
+  "playlist_url" | "playlist_id" | "playlist_name" | "chunks_processed" | "audd_requests"
+>
 
 export function HomePage() {
   const searchParams = useSearchParams()
@@ -29,8 +39,11 @@ export function HomePage() {
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<AnalyzeResult | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [songs, setSongs] = useState<AnalyzeSong[]>([])
+  const [playlist, setPlaylist] = useState<PlaylistInfo | null>(null)
+  const [progressMsg, setProgressMsg] = useState<string | null>(null)
+  const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null)
 
   useEffect(() => {
     const stored = getStoredAccessToken()
@@ -48,7 +61,8 @@ export function HomePage() {
 
   useEffect(() => {
     if (!token) {
-      setResult(null)
+      setSongs([])
+      setPlaylist(null)
       setDrawerOpen(false)
     }
   }, [token])
@@ -62,14 +76,35 @@ export function HomePage() {
       }
       setError(null)
       clearAuthError()
-      setResult(null)
+      setSongs([])
+      setPlaylist(null)
+      setProgressMsg(null)
+      setChunkProgress(null)
       setDrawerOpen(false)
       setLoading(true)
       console.log("[page] Submitting URL:", youtubeUrl)
       try {
-        const data = await analyzeYoutube(youtubeUrl, token)
-        setResult(data)
-        setDrawerOpen(true)
+        await analyzeYoutubeStream(youtubeUrl, token, (event) => {
+          if (event.type === "progress") {
+            setProgressMsg(event.message)
+            if (event.total_chunks != null) {
+              setChunkProgress({ done: 0, total: event.total_chunks })
+            }
+          } else if (event.type === "chunk_done") {
+            setChunkProgress({ done: event.chunk, total: event.total })
+          } else if (event.type === "song") {
+            const { type: _t, chunk, total, ...song } = event
+            setSongs((prev) => [...prev, song as AnalyzeSong])
+            setChunkProgress({ done: chunk, total })
+            setDrawerOpen(true)
+          } else if (event.type === "done") {
+            setPlaylist(event)
+            setProgressMsg(null)
+            setDrawerOpen(true)
+          } else if (event.type === "error") {
+            setError(event.message)
+          }
+        })
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong")
       } finally {
@@ -90,24 +125,37 @@ export function HomePage() {
           <label className="sr-only" htmlFor="youtube-url">
             YouTube URL
           </label>
-          <Input
-            id="youtube-url"
-            name="youtube-url"
-            type="url"
-            required
-            placeholder="https://www.youtube.com/watch?v=…"
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-            disabled={loading || !token}
-            className="h-auto min-h-14 w-full max-w-2xl rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground/70 sm:min-h-16 sm:text-xl md:text-2xl md:py-5"
-          />
+          <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl">
+            <Input
+              id="youtube-url"
+              name="youtube-url"
+              type="url"
+              required
+              placeholder="https://www.youtube.com/watch?v=…"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              disabled={loading || !token}
+              className="h-auto min-h-14 w-full rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground/70 sm:min-h-16 sm:text-xl md:text-2xl md:py-5"
+            />
+            {loading ? (
+              <BorderBeam
+                size={300}
+                duration={4}
+                borderWidth={2}
+                colorFrom="transparent"
+                colorTo="#1DB954"
+              />
+            ) : null}
+          </div>
           <Button
             type="submit"
             size="lg"
             disabled={loading || !token}
             className="min-w-48 rounded-xl px-6"
           >
-            {loading ? "Working… (this can take a while)" : "Create playlist"}
+            {loading
+              ? (progressMsg ?? "Working…")
+              : "Create playlist"}
           </Button>
         </form>
 
@@ -127,74 +175,89 @@ export function HomePage() {
           </p>
         ) : null}
 
-        {result ? (
-          <Drawer
-            open={drawerOpen}
-            onOpenChange={setDrawerOpen}
-            position="bottom"
-          >
-            <DrawerPopup showBar className="h-[min(90vh,720px)]">
-              <DrawerHeader>
-                <DrawerTitle>{result.playlist_name}</DrawerTitle>
-                <DrawerDescription>
-                  {result.songs.length} unique track(s) ·{" "}
-                  {result.chunks_processed} audio chunk(s) ·{" "}
-                  {result.audd_requests} AudD request(s)
-                </DrawerDescription>
-              </DrawerHeader>
-              <div className="flex min-h-0 max-h-[60vh] flex-1 flex-col px-6">
-                <ScrollArea
-                  scrollFade
-                  className="min-h-0 flex-1 touch-auto [--fade-size:2rem]"
-                >
-                  {result.songs.length > 0 ? (
-                    <ul className="space-y-3 pb-2 text-left text-sm">
-                      {result.songs.map((s, i) => {
-                        const line =
-                          s.artist && s.title
-                            ? `${s.artist} — ${s.title}`
-                            : (s.label ?? s.title ?? "Unknown track")
-                        const trackHref =
-                          s.spotify_id != null
-                            ? `https://open.spotify.com/track/${s.spotify_id}`
-                            : null
-                        return (
-                          <li
-                            key={`${s.spotify_id ?? s.spotify_uri ?? s.label ?? "t"}-${i}`}
-                            className="flex items-start gap-2 border-b border-border/60 pb-3 last:border-0"
-                          >
-                            <span className="min-w-0 flex-1 font-medium leading-snug">
-                              {line}
-                            </span>
-                            {trackHref ? (
-                              <Link
-                                href={trackHref}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-foreground"
-                                aria-label={`Open ${line} on Spotify`}
-                              >
-                                <ArrowSquareOut
-                                  className="size-5 shrink-0"
-                                  weight="bold"
-                                />
-                              </Link>
-                            ) : null}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="pb-4 text-left text-sm text-muted-foreground">
-                      No songs were recognized. Try a different video or shorter
-                      clips.
-                    </p>
-                  )}
-                </ScrollArea>
-              </div>
-              <DrawerFooter>
+        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} position="bottom">
+          <DrawerPopup showBar className="h-[min(90vh,720px)]">
+            <DrawerHeader>
+              <DrawerTitle>
+                {playlist?.playlist_name ?? "Songs found so far…"}
+              </DrawerTitle>
+              <DrawerDescription>
+                {playlist
+                  ? `${songs.length} track(s) · ${playlist.chunks_processed} chunk(s)`
+                  : chunkProgress
+                    ? `Chunk ${chunkProgress.done} of ${chunkProgress.total}…`
+                    : (progressMsg ?? "Analyzing…")}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="flex min-h-0 max-h-[60vh] flex-1 flex-col px-6">
+              <ScrollArea
+                scrollFade
+                className="min-h-0 flex-1 touch-auto [--fade-size:2rem]"
+              >
+                {songs.length > 0 ? (
+                  <ul className="space-y-3 pb-2 text-left text-sm">
+                    {songs.map((s, i) => {
+                      const line =
+                        s.artist && s.title
+                          ? `${s.artist} — ${s.title}`
+                          : (s.label ?? s.title ?? "Unknown track")
+                      const trackHref =
+                        s.spotify_id != null
+                          ? `https://open.spotify.com/track/${s.spotify_id}`
+                          : null
+                      return (
+                        <li
+                          key={`${s.spotify_id ?? s.spotify_uri ?? s.label ?? "t"}-${i}`}
+                          className="flex items-center gap-3 border-b border-border/60 pb-3 last:border-0"
+                        >
+                          {s.image_url ? (
+                            <img
+                              src={s.image_url}
+                              alt={line}
+                              width={40}
+                              height={40}
+                              className="size-10 shrink-0 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="size-10 shrink-0 rounded bg-muted" />
+                          )}
+                          <span className="min-w-0 flex-1 font-medium leading-snug">
+                            {line}
+                          </span>
+                          {trackHref ? (
+                            <Link
+                              href={trackHref}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground"
+                              aria-label={`Open ${line} on Spotify`}
+                            >
+                              <ArrowSquareOut
+                                className="size-5 shrink-0"
+                                weight="bold"
+                              />
+                            </Link>
+                          ) : null}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : playlist ? (
+                  <p className="pb-4 text-left text-sm text-muted-foreground">
+                    No songs were recognized. Try a different video or shorter
+                    clips.
+                  </p>
+                ) : (
+                  <p className="pb-4 text-left text-sm text-muted-foreground">
+                    Listening for songs…
+                  </p>
+                )}
+              </ScrollArea>
+            </div>
+            <DrawerFooter>
+              {playlist ? (
                 <Link
-                  href={result.playlist_url}
+                  href={playlist.playlist_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
@@ -204,13 +267,13 @@ export function HomePage() {
                 >
                   Open in Spotify
                 </Link>
-                <DrawerClose render={<Button variant="outline" />}>
-                  Close
-                </DrawerClose>
-              </DrawerFooter>
-            </DrawerPopup>
-          </Drawer>
-        ) : null}
+              ) : null}
+              <DrawerClose render={<Button variant="outline" />}>
+                {loading ? "Keep open" : "Close"}
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerPopup>
+        </Drawer>
 
       </div>
     </main>

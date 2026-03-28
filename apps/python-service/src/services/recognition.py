@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 import httpx
@@ -117,3 +118,62 @@ async def recognize_chunks(
         requests_made,
     )
     return list(songs_by_id.values()), requests_made
+
+
+async def recognize_chunks_stream(
+    chunks: list[AudioSegment],
+    api_token: str,
+    *,
+    timeout: float = 60.0,
+) -> AsyncGenerator[dict[str, Any], None]:
+    """
+    Async generator that processes chunks one at a time and yields events:
+    - {"type": "song",     "song": {...}, "chunk": N, "total": N, "requests_made": N}
+    - {"type": "no_match", "chunk": N, "total": N, "requests_made": N}
+    """
+    seen_ids: set[str] = set()
+    requests_made = 0
+    total = len(chunks)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for i, segment in enumerate(chunks):
+            logger.info("[recognition/stream] Chunk %d/%d → sending to AudD", i + 1, total)
+            buf = io.BytesIO()
+            segment.export(buf, format="mp3")
+            buf.seek(0)
+            file_bytes = buf.read()
+            data = {"api_token": api_token, "return": "spotify"}
+            files = {"file": (f"chunk_{i}.mp3", file_bytes, "audio/mpeg")}
+
+            try:
+                resp = await client.post(AUDD_URL, data=data, files=files)
+                resp.raise_for_status()
+                payload = resp.json()
+            except Exception as e:
+                logger.warning("[recognition/stream] Chunk %d → AudD failed: %s", i + 1, e)
+                requests_made += 1
+                yield {"type": "no_match", "chunk": i + 1, "total": total, "requests_made": requests_made}
+                continue
+
+            requests_made += 1
+            if payload.get("status") != "success" or payload.get("result") is None:
+                yield {"type": "no_match", "chunk": i + 1, "total": total, "requests_made": requests_made}
+                continue
+
+            result = payload["result"]
+            tid, uri, label = _extract_spotify_from_result(result)
+
+            if not tid or not uri or tid in seen_ids:
+                yield {"type": "no_match", "chunk": i + 1, "total": total, "requests_made": requests_made}
+                continue
+
+            seen_ids.add(tid)
+            song: dict[str, Any] = {
+                "spotify_id": tid,
+                "spotify_uri": uri,
+                "title": result.get("title") if isinstance(result, dict) else None,
+                "artist": result.get("artist") if isinstance(result, dict) else None,
+                "label": label,
+            }
+            logger.info("[recognition/stream] Chunk %d → new match: %s", i + 1, label)
+            yield {"type": "song", "song": song, "chunk": i + 1, "total": total, "requests_made": requests_made}
