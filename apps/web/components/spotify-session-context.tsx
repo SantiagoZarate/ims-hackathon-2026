@@ -22,6 +22,7 @@ type SpotifySessionContextValue = {
   login: () => Promise<void>
   logout: () => void
   clearAuthError: () => void
+  refreshToken: () => void
 }
 
 const SpotifySessionContext = createContext<SpotifySessionContextValue | null>(
@@ -67,8 +68,9 @@ export function SpotifySessionProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       clearAuthError,
+      refreshToken,
     }),
-    [token, authError, login, logout, clearAuthError]
+    [token, authError, login, logout, clearAuthError, refreshToken]
   )
 
   return (

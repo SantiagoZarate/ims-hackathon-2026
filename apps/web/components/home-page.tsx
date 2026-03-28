@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 
+import { PlatformLogos } from "@/components/platform-logos"
 import { useSpotifySession } from "@/components/spotify-session-context"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -65,21 +66,12 @@ export function HomePage() {
 
   return (
     <main className="flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col items-center justify-center px-6 py-10">
-      <div className="flex w-full max-w-2xl flex-col items-center gap-10 text-center">
-        <div className="space-y-2">
-          <p className="font-heading text-balance text-2xl font-medium tracking-tight sm:text-3xl">
-            Paste a YouTube URL, get a Spotify playlist
-          </p>
-          <p className="text-balance text-sm text-muted-foreground sm:text-base">
-            We recognize the songs in the audio and add only those tracks to a
-            new playlist on your account.
-          </p>
-        </div>
-
+      <div className="flex w-full max-w-2xl flex-col items-center gap-8 text-center">
         <form
           onSubmit={handleSubmit}
           className="flex w-full flex-col items-center gap-4"
         >
+          <PlatformLogos className="-mb-1" />
           <label className="sr-only" htmlFor="youtube-url">
             YouTube URL
           </label>
@@ -103,6 +95,16 @@ export function HomePage() {
             {loading ? "Working… (this can take a while)" : "Create playlist"}
           </Button>
         </form>
+
+        <div className="space-y-1">
+          <p className="font-heading text-balance text-xl font-medium tracking-tight sm:text-2xl">
+            Paste a YouTube URL, get a Spotify playlist
+          </p>
+          <p className="text-balance text-sm text-muted-foreground">
+            We recognize the songs in the audio and add only those tracks to a
+            new playlist on your account.
+          </p>
+        </div>
 
         {error || authError ? (
           <p className="max-w-lg text-sm text-destructive" role="alert">
@@ -150,9 +152,6 @@ export function HomePage() {
           </div>
         ) : null}
 
-        <p className="text-xs text-muted-foreground font-mono">
-          Press <kbd className="rounded-md px-1.5 py-0.5">d</kbd> for dark mode
-        </p>
       </div>
     </main>
   )

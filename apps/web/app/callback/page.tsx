@@ -3,11 +3,13 @@
 import { Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
+import { useSpotifySession } from "@/components/spotify-session-context"
 import { exchangeCodeForToken } from "@/lib/spotify-auth"
 
 function CallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { refreshToken } = useSpotifySession()
 
   useEffect(() => {
     const err = searchParams.get("error")
@@ -27,7 +29,10 @@ function CallbackContent() {
     ;(async () => {
       try {
         await exchangeCodeForToken(code)
-        if (!cancelled) router.replace("/")
+        if (!cancelled) {
+          refreshToken()
+          router.replace("/")
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Login failed"
         if (!cancelled) router.replace(`/?spotify_error=${encodeURIComponent(msg)}`)
@@ -37,7 +42,7 @@ function CallbackContent() {
     return () => {
       cancelled = true
     }
-  }, [router, searchParams])
+  }, [router, searchParams, refreshToken])
 
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
