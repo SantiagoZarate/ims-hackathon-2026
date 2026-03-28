@@ -1,12 +1,13 @@
 "use client"
 
-import { ArrowSquareOut } from "@phosphor-icons/react"
+import { ArrowSquareOut, Queue } from "@phosphor-icons/react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { PlatformLogos } from "@/components/platform-logos"
 import { useSpotifySession } from "@/components/spotify-session-context"
+import { BorderBeam } from "@/components/ui/border-beam"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
@@ -19,7 +20,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import { BorderBeam } from "@/components/ui/border-beam"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -27,6 +27,11 @@ import {
   type AnalyzeSong,
   type SseDoneEvent,
 } from "@/lib/api"
+import {
+  getHistory,
+  savePlaylist,
+  type SavedPlaylist,
+} from "@/lib/playlist-history"
 import { getStoredAccessToken } from "@/lib/spotify-auth"
 
 type PlaylistInfo = Pick<
@@ -45,6 +50,10 @@ export function HomePage() {
   const [playlist, setPlaylist] = useState<PlaylistInfo | null>(null)
   const [progressMsg, setProgressMsg] = useState<string | null>(null)
   const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null)
+  const songsRef = useRef<AnalyzeSong[]>([])
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [libraryItems, setLibraryItems] = useState<SavedPlaylist[]>([])
+  const [historyTick, setHistoryTick] = useState(0)
 
   useEffect(() => {
     const stored = getStoredAccessToken()
@@ -62,11 +71,18 @@ export function HomePage() {
 
   useEffect(() => {
     if (!token) {
+      songsRef.current = []
       setSongs([])
       setPlaylist(null)
       setDrawerOpen(false)
     }
   }, [token])
+
+  useEffect(() => {
+    if (libraryOpen) {
+      setLibraryItems(getHistory())
+    }
+  }, [libraryOpen, historyTick])
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -77,6 +93,7 @@ export function HomePage() {
       }
       setError(null)
       clearAuthError()
+      songsRef.current = []
       setSongs([])
       setPlaylist(null)
       setProgressMsg(null)
@@ -94,23 +111,36 @@ export function HomePage() {
           } else if (event.type === "chunk_done") {
             setChunkProgress({ done: event.chunk, total: event.total })
           } else if (event.type === "song") {
-            setSongs((prev) => [
-              ...prev,
-              {
-                spotify_id: event.spotify_id,
-                spotify_uri: event.spotify_uri,
-                title: event.title,
-                artist: event.artist,
-                label: event.label,
-                image_url: event.image_url,
-              },
-            ])
+            setSongs((prev) => {
+              const next = [
+                ...prev,
+                {
+                  spotify_id: event.spotify_id,
+                  spotify_uri: event.spotify_uri,
+                  title: event.title,
+                  artist: event.artist,
+                  label: event.label,
+                  image_url: event.image_url,
+                },
+              ]
+              songsRef.current = next
+              return next
+            })
             setChunkProgress({ done: event.chunk, total: event.total })
             setDrawerOpen(true)
           } else if (event.type === "done") {
             setPlaylist(event)
             setProgressMsg(null)
             setDrawerOpen(true)
+            savePlaylist({
+              id: event.playlist_id,
+              name: event.playlist_name,
+              url: event.playlist_url,
+              youtube_url: youtubeUrl,
+              songs: [...songsRef.current],
+              created_at: new Date().toISOString(),
+            })
+            setHistoryTick((t) => t + 1)
           } else if (event.type === "error") {
             setError(event.message)
           }
@@ -157,16 +187,227 @@ export function HomePage() {
               />
             ) : null}
           </div>
-          <Button
-            type="submit"
-            size="lg"
-            disabled={loading || !token}
-            className="min-w-48 rounded-xl px-6"
-          >
-            {loading
-              ? (progressMsg ?? "Working…")
-              : "Create playlist"}
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button
+              type="submit"
+              size="lg"
+              disabled={loading || !token}
+              className="min-w-48 rounded-xl px-6"
+            >
+              {loading
+                ? (progressMsg ?? "Working…")
+                : "Create playlist"}
+            </Button>
+            <Drawer open={libraryOpen} onOpenChange={setLibraryOpen} position="bottom">
+              <DrawerTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon-lg"
+                    type="button"
+                    className="rounded-xl"
+                    disabled={!token}
+                    aria-label="Open playlist library"
+                  />
+                }
+              >
+                <Queue className="size-5" weight="bold" />
+              </DrawerTrigger>
+              <DrawerPopup showBar className="h-[min(90vh,720px)]">
+                <DrawerHeader>
+                  <DrawerTitle>Library</DrawerTitle>
+                  <DrawerDescription>
+                    {libraryItems.length} playlist
+                    {libraryItems.length === 1 ? "" : "s"}
+                  </DrawerDescription>
+                </DrawerHeader>
+                <div className="flex min-h-0 max-h-[min(60vh,480px)] flex-1 flex-col px-6">
+                  {libraryItems.length === 0 ? (
+                    <p className="pb-4 text-left text-sm text-muted-foreground">
+                      No playlists yet. Complete an analysis to save one here.
+                    </p>
+                  ) : (
+                    <ScrollArea
+                      scrollFade
+                      className="min-h-0 flex-1 touch-auto [--fade-size:2rem]"
+                    >
+                      <ul className="space-y-2 pb-2 text-left">
+                        {libraryItems.map((item) => (
+                          <li key={item.id}>
+                            <Drawer position="bottom">
+                              <DrawerTrigger
+                                render={
+                                  <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-xl border border-border/80 bg-muted/30 p-3 text-left transition-colors hover:bg-muted/50"
+                                  />
+                                }
+                              >
+                                <div className="grid shrink-0 grid-cols-2 gap-0.5">
+                                  {Array.from({ length: 4 }, (_, idx) => {
+                                    const url = item.songs[idx]?.image_url
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="size-8 overflow-hidden rounded bg-muted"
+                                      >
+                                        {url ? (
+                                          <img
+                                            src={url}
+                                            alt=""
+                                            width={32}
+                                            height={32}
+                                            className="size-full object-cover"
+                                          />
+                                        ) : null}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate font-medium">
+                                    {item.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(item.created_at).toLocaleString()}{" "}
+                                    · {item.songs.length} track
+                                    {item.songs.length === 1 ? "" : "s"}
+                                  </p>
+                                </div>
+                              </DrawerTrigger>
+                              <DrawerPopup showBar className="h-[min(90vh,720px)]">
+                                <DrawerHeader className="text-center">
+                                  <DrawerTitle>{item.name}</DrawerTitle>
+                                  <DrawerDescription>
+                                    {item.songs.length} track(s) · Ready to
+                                    share
+                                  </DrawerDescription>
+                                </DrawerHeader>
+                                <DrawerPanel>
+                                  <div className="mx-auto grid max-w-[200px] grid-cols-2 gap-1">
+                                    {Array.from({ length: 4 }, (_, idx) => {
+                                      const url = item.songs[idx]?.image_url
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className="aspect-square overflow-hidden rounded-lg bg-muted"
+                                        >
+                                          {url ? (
+                                            <img
+                                              src={url}
+                                              alt=""
+                                              className="size-full object-cover"
+                                            />
+                                          ) : null}
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </DrawerPanel>
+                                <div className="flex min-h-0 max-h-[40vh] flex-col px-6">
+                                  <ScrollArea
+                                    scrollFade
+                                    className="min-h-0 flex-1 touch-auto [--fade-size:2rem]"
+                                  >
+                                    <ul className="space-y-3 pb-2 text-left text-sm">
+                                      {item.songs.map((s: AnalyzeSong, i: number) => {
+                                        const line =
+                                          s.artist && s.title
+                                            ? `${s.artist} — ${s.title}`
+                                            : (s.label ??
+                                              s.title ??
+                                              "Unknown track")
+                                        const trackHref =
+                                          s.spotify_id != null
+                                            ? `https://open.spotify.com/track/${s.spotify_id}`
+                                            : null
+                                        return (
+                                          <li
+                                            key={`${s.spotify_id ?? s.spotify_uri ?? s.label ?? "t"}-${i}`}
+                                            className="flex items-center gap-3 border-b border-border/60 pb-3 last:border-0"
+                                          >
+                                            {s.image_url ? (
+                                              <img
+                                                src={s.image_url}
+                                                alt={line}
+                                                width={40}
+                                                height={40}
+                                                className="size-10 shrink-0 rounded object-cover"
+                                              />
+                                            ) : (
+                                              <div className="size-10 shrink-0 rounded bg-muted" />
+                                            )}
+                                            <span className="min-w-0 flex-1 font-medium leading-snug">
+                                              {line}
+                                            </span>
+                                            {trackHref ? (
+                                              <Link
+                                                href={trackHref}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-muted-foreground hover:text-foreground"
+                                                aria-label={`Open ${line} on Spotify`}
+                                              >
+                                                <ArrowSquareOut
+                                                  className="size-5 shrink-0"
+                                                  weight="bold"
+                                                />
+                                              </Link>
+                                            ) : null}
+                                          </li>
+                                        )
+                                      })}
+                                    </ul>
+                                  </ScrollArea>
+                                </div>
+                                <DrawerFooter
+                                  className="justify-center sm:justify-center"
+                                  variant="bare"
+                                >
+                                  <DrawerClose render={<Button variant="ghost" />}>
+                                    Back
+                                  </DrawerClose>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                      console.log(
+                                        "[page] Share playlist (mock)",
+                                        item.url
+                                      )
+                                    }}
+                                  >
+                                    Share
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      window.open(
+                                        item.url,
+                                        "_blank",
+                                        "noopener,noreferrer"
+                                      )
+                                    }}
+                                  >
+                                    Open App
+                                  </Button>
+                                </DrawerFooter>
+                              </DrawerPopup>
+                            </Drawer>
+                          </li>
+                        ))}
+                      </ul>
+                    </ScrollArea>
+                  )}
+                </div>
+                <DrawerFooter>
+                  <DrawerClose render={<Button variant="outline" />}>
+                    Close
+                  </DrawerClose>
+                </DrawerFooter>
+              </DrawerPopup>
+            </Drawer>
+          </div>
         </form>
 
         <div className="space-y-1">
