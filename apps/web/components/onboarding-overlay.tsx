@@ -1,12 +1,16 @@
 "use client"
 
 import { motion } from "motion/react"
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 const EASE_OUT = [0.23, 1, 0.32, 1] as const
+
+function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
+  e.currentTarget.style.display = "none"
+}
 
 const STEPS = [
   {
@@ -27,10 +31,13 @@ const STEPS = [
 ] as const
 
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false)
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false
+  )
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
-    setReduced(mq.matches)
     const fn = () => setReduced(mq.matches)
     mq.addEventListener("change", fn)
     return () => mq.removeEventListener("change", fn)
@@ -46,10 +53,6 @@ export function OnboardingOverlay({ onDismiss }: OnboardingOverlayProps) {
   const [activeStep, setActiveStep] = useState(0)
   const reducedMotion = usePrefersReducedMotion()
   const duration = reducedMotion ? 0.01 : 0.5
-
-  const handleSkip = useCallback(() => {
-    onDismiss()
-  }, [onDismiss])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -100,9 +103,7 @@ export function OnboardingOverlay({ onDismiss }: OnboardingOverlayProps) {
                     "size-full object-cover transition-opacity duration-300",
                     isActive ? "opacity-100" : "opacity-40"
                   )}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none"
-                  }}
+                  onError={handleImgError}
                 />
               </div>
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-4/5 bg-gradient-to-t from-black from-30% via-black/80 to-transparent" />
@@ -145,7 +146,7 @@ export function OnboardingOverlay({ onDismiss }: OnboardingOverlayProps) {
         type="button"
         variant="ghost"
         size="sm"
-        onClick={handleSkip}
+        onClick={onDismiss}
         className="absolute bottom-6 right-6 text-white/60 hover:text-white"
       >
         Skip
