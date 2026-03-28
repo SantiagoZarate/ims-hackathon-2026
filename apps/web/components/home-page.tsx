@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, ArrowSquareOut, Trash } from "@phosphor-icons/react"
+import { ArrowRight, ArrowSquareOut, CheckCircle, Trash } from "@phosphor-icons/react"
 import { AnimatePresence, motion } from "motion/react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
@@ -496,11 +496,53 @@ export function HomePage() {
                 {playlist?.playlist_name ?? "Songs found so far…"}
               </DrawerTitle>
               <DrawerDescription>
-                {playlist
-                  ? `${songs.length} track(s) · ${playlist.chunks_processed} chunk(s)`
-                  : chunkProgress
-                    ? `Chunk ${chunkProgress.done} of ${chunkProgress.total}…`
-                    : (progressMsg ?? "Analyzing…")}
+                <AnimatePresence mode="wait">
+                  {playlist ? (
+                    <motion.span
+                      key="done"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                      className="inline-flex items-center gap-1.5 text-green-500"
+                    >
+                      <CheckCircle weight="fill" className="size-4 shrink-0" />
+                      {songs.length} track{songs.length === 1 ? "" : "s"} · {playlist.chunks_processed} chunk{playlist.chunks_processed === 1 ? "" : "s"}
+                    </motion.span>
+                  ) : chunkProgress ? (
+                    <motion.span
+                      key="progress"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="inline-flex w-full items-center gap-2"
+                    >
+                      <span className="relative inline-block h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+                        <motion.span
+                          className="absolute inset-y-0 left-0 block rounded-full bg-[#1DB954]"
+                          animate={{
+                            width: `${Math.round((chunkProgress.done / chunkProgress.total) * 100)}%`,
+                          }}
+                          transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+                        />
+                      </span>
+                      <span className="shrink-0 tabular-nums text-xs">
+                        {chunkProgress.done} / {chunkProgress.total}
+                      </span>
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="msg"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {progressMsg ?? "Analyzing…"}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </DrawerDescription>
             </DrawerHeader>
             <div className="flex min-h-0 max-h-[60vh] flex-1 flex-col px-6">
