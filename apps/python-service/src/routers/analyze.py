@@ -85,7 +85,7 @@ async def analyze(body: AnalyzeRequest) -> AnalyzeResponse:
 
     logger.info("[analyze] Step 4/4 — creating Spotify playlist…")
     try:
-        me = await spotify.get_current_user(body.spotify_token)
+        await spotify.get_current_user(body.spotify_token)
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
             raise HTTPException(
@@ -102,16 +102,11 @@ async def analyze(body: AnalyzeRequest) -> AnalyzeResponse:
             detail=f"Spotify request failed: {e!s}",
         ) from e
 
-    user_id = me.get("id")
-    if not user_id:
-        raise HTTPException(status_code=502, detail="Spotify did not return user id")
-
     playlist_name = spotify.sanitize_playlist_name(video_title)
     description = "Created from a YouTube video (hackathon MVP)."
 
     try:
         pl = await spotify.create_playlist(
-            user_id,
             body.spotify_token,
             playlist_name,
             description=description,

@@ -10,7 +10,8 @@ export function TopBar() {
   const { token, login, logout } = useSpotifySession()
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border px-6">
+    <header className="shrink-0 border-b border-border px-6">
+      <div className="mx-auto flex h-14 w-full max-w-[805px] items-center gap-4">
       <Link
         href="/"
         className="font-heading text-sm font-medium tracking-tight text-foreground hover:opacity-80"
@@ -44,6 +45,7 @@ export function TopBar() {
             Log in with Spotify
           </Button>
         )}
+      </div>
       </div>
     </header>
   )

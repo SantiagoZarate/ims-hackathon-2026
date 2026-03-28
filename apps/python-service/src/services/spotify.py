@@ -38,13 +38,13 @@ def sanitize_playlist_name(title: str, max_len: int = 100) -> str:
 
 
 async def create_playlist(
-    user_id: str,
     access_token: str,
     name: str,
     *,
     description: str = "",
     public: bool = False,
 ) -> dict[str, Any]:
+    """Create a playlist for the current user (POST /me/playlists — Feb 2026+ API)."""
     body: dict[str, Any] = {
         "name": name,
         "description": description,
@@ -52,7 +52,7 @@ async def create_playlist(
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(
-            f"{SPOTIFY_API}/users/{user_id}/playlists",
+            f"{SPOTIFY_API}/me/playlists",
             headers=_bearer(access_token),
             json=body,
         )
@@ -77,7 +77,7 @@ async def add_tracks_to_playlist(
         for offset in range(0, len(track_uris), 100):
             batch = track_uris[offset : offset + 100]
             r = await client.post(
-                f"{SPOTIFY_API}/playlists/{playlist_id}/tracks",
+                f"{SPOTIFY_API}/playlists/{playlist_id}/items",
                 headers=headers,
                 json={"uris": batch},
             )

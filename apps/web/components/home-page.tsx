@@ -1,16 +1,27 @@
 "use client"
 
+import { ArrowSquareOut } from "@phosphor-icons/react"
 import Link from "next/link"
-import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
 
 import { PlatformLogos } from "@/components/platform-logos"
 import { useSpotifySession } from "@/components/spotify-session-context"
 import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerPopup,
+  DrawerTitle,
+} from "@/components/ui/drawer"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { analyzeYoutube, type AnalyzeResult } from "@/lib/api"
 import { getStoredAccessToken } from "@/lib/spotify-auth"
+import { cn } from "@/lib/utils"
 
 export function HomePage() {
   const searchParams = useSearchParams()
@@ -19,6 +30,7 @@ export function HomePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalyzeResult | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
     const stored = getStoredAccessToken()
@@ -37,6 +49,7 @@ export function HomePage() {
   useEffect(() => {
     if (!token) {
       setResult(null)
+      setDrawerOpen(false)
     }
   }, [token])
 
@@ -50,11 +63,13 @@ export function HomePage() {
       setError(null)
       clearAuthError()
       setResult(null)
+      setDrawerOpen(false)
       setLoading(true)
       console.log("[page] Submitting URL:", youtubeUrl)
       try {
         const data = await analyzeYoutube(youtubeUrl, token)
         setResult(data)
+        setDrawerOpen(true)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong")
       } finally {
@@ -66,7 +81,7 @@ export function HomePage() {
 
   return (
     <main className="flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col items-center justify-center px-6 py-10">
-      <div className="flex w-full max-w-2xl flex-col items-center gap-8 text-center">
+      <div className="flex w-full max-w-[805px] flex-col items-center gap-8 text-center">
         <form
           onSubmit={handleSubmit}
           className="flex w-full flex-col items-center gap-4"
@@ -113,43 +128,88 @@ export function HomePage() {
         ) : null}
 
         {result ? (
-          <div className="w-full max-w-2xl space-y-4 rounded-2xl border border-border bg-card p-5 text-left">
-            <div>
-              <h2 className="font-heading text-sm font-medium">
-                {result.playlist_name}
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {result.songs.length} unique track(s) · {result.chunks_processed}{" "}
-                audio chunk(s) · {result.audd_requests} AudD request(s)
-              </p>
-              <Link
-                href={result.playlist_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(buttonVariants({ size: "sm" }), "mt-3 inline-flex")}
-              >
-                Open in Spotify
-              </Link>
-            </div>
-            {result.songs.length > 0 ? (
-              <ul className="max-h-60 space-y-2 overflow-y-auto text-xs">
-                {result.songs.map((s) => (
-                  <li key={s.spotify_id ?? s.spotify_uri ?? s.label}>
-                    <span className="font-medium">
-                      {s.artist && s.title
-                        ? `${s.artist} — ${s.title}`
-                        : (s.label ?? s.title ?? "Unknown track")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No songs were recognized. Try a different video or shorter
-                clips.
-              </p>
-            )}
-          </div>
+          <Drawer
+            open={drawerOpen}
+            onOpenChange={setDrawerOpen}
+            position="bottom"
+          >
+            <DrawerPopup showBar className="h-[min(90vh,720px)]">
+              <DrawerHeader>
+                <DrawerTitle>{result.playlist_name}</DrawerTitle>
+                <DrawerDescription>
+                  {result.songs.length} unique track(s) ·{" "}
+                  {result.chunks_processed} audio chunk(s) ·{" "}
+                  {result.audd_requests} AudD request(s)
+                </DrawerDescription>
+              </DrawerHeader>
+              <div className="flex min-h-0 max-h-[60vh] flex-1 flex-col px-6">
+                <ScrollArea
+                  scrollFade
+                  className="min-h-0 flex-1 touch-auto [--fade-size:2rem]"
+                >
+                  {result.songs.length > 0 ? (
+                    <ul className="space-y-3 pb-2 text-left text-sm">
+                      {result.songs.map((s, i) => {
+                        const line =
+                          s.artist && s.title
+                            ? `${s.artist} — ${s.title}`
+                            : (s.label ?? s.title ?? "Unknown track")
+                        const trackHref =
+                          s.spotify_id != null
+                            ? `https://open.spotify.com/track/${s.spotify_id}`
+                            : null
+                        return (
+                          <li
+                            key={`${s.spotify_id ?? s.spotify_uri ?? s.label ?? "t"}-${i}`}
+                            className="flex items-start gap-2 border-b border-border/60 pb-3 last:border-0"
+                          >
+                            <span className="min-w-0 flex-1 font-medium leading-snug">
+                              {line}
+                            </span>
+                            {trackHref ? (
+                              <Link
+                                href={trackHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label={`Open ${line} on Spotify`}
+                              >
+                                <ArrowSquareOut
+                                  className="size-5 shrink-0"
+                                  weight="bold"
+                                />
+                              </Link>
+                            ) : null}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="pb-4 text-left text-sm text-muted-foreground">
+                      No songs were recognized. Try a different video or shorter
+                      clips.
+                    </p>
+                  )}
+                </ScrollArea>
+              </div>
+              <DrawerFooter>
+                <Link
+                  href={result.playlist_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "inline-flex w-full sm:w-auto"
+                  )}
+                >
+                  Open in Spotify
+                </Link>
+                <DrawerClose render={<Button variant="outline" />}>
+                  Close
+                </DrawerClose>
+              </DrawerFooter>
+            </DrawerPopup>
+          </Drawer>
         ) : null}
 
       </div>

@@ -16,6 +16,11 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+export const metadata = {
+  title: "Mixtract",
+  description: "Convert YouTube audio to a Spotify playlist using recognized songs.",
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,10 +46,12 @@ export default function RootLayout({
           <SpotifySessionProvider>
             <TopBar />
             {children}
-            <footer className="flex shrink-0 items-center justify-center border-t border-border px-6 py-3">
-              <p className="font-mono text-xs text-muted-foreground">
-                Press <kbd className="rounded-md px-1.5 py-0.5">d</kbd> for dark mode
-              </p>
+            <footer className="shrink-0 border-t border-border px-6 py-3">
+              <div className="mx-auto w-full max-w-[805px]">
+                <p className="font-mono text-xs text-muted-foreground">
+                  Press <kbd className="rounded-md px-1.5 py-0.5">d</kbd> for dark mode
+                </p>
+              </div>
             </footer>
           </SpotifySessionProvider>
         </ThemeProvider>
