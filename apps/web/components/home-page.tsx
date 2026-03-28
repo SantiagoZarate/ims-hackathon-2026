@@ -7,15 +7,17 @@ import { useCallback, useEffect, useState } from "react"
 
 import { PlatformLogos } from "@/components/platform-logos"
 import { useSpotifySession } from "@/components/spotify-session-context"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import {
   Drawer,
   DrawerClose,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
+  DrawerPanel,
   DrawerPopup,
   DrawerTitle,
+  DrawerTrigger,
 } from "@/components/ui/drawer"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { Input } from "@/components/ui/input"
@@ -26,7 +28,6 @@ import {
   type SseDoneEvent,
 } from "@/lib/api"
 import { getStoredAccessToken } from "@/lib/spotify-auth"
-import { cn } from "@/lib/utils"
 
 type PlaylistInfo = Pick<
   SseDoneEvent,
@@ -93,9 +94,18 @@ export function HomePage() {
           } else if (event.type === "chunk_done") {
             setChunkProgress({ done: event.chunk, total: event.total })
           } else if (event.type === "song") {
-            const { type: _t, chunk, total, ...song } = event
-            setSongs((prev) => [...prev, song as AnalyzeSong])
-            setChunkProgress({ done: chunk, total })
+            setSongs((prev) => [
+              ...prev,
+              {
+                spotify_id: event.spotify_id,
+                spotify_uri: event.spotify_uri,
+                title: event.title,
+                artist: event.artist,
+                label: event.label,
+                image_url: event.image_url,
+              },
+            ])
+            setChunkProgress({ done: event.chunk, total: event.total })
             setDrawerOpen(true)
           } else if (event.type === "done") {
             setPlaylist(event)
@@ -208,7 +218,7 @@ export function HomePage() {
                       return (
                         <li
                           key={`${s.spotify_id ?? s.spotify_uri ?? s.label ?? "t"}-${i}`}
-                          className="flex items-center gap-3 border-b border-border/60 pb-3 last:border-0"
+                          className="flex items-center gap-3 border-b border-border/60 pb-3 last:border-0 animate-[songIn_200ms_cubic-bezier(0.23,1,0.32,1)_both]"
                         >
                           {s.image_url ? (
                             <img
@@ -256,17 +266,73 @@ export function HomePage() {
             </div>
             <DrawerFooter>
               {playlist ? (
-                <Link
-                  href={playlist.playlist_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "inline-flex w-full sm:w-auto"
-                  )}
-                >
-                  Open in Spotify
-                </Link>
+                <Drawer>
+                  <DrawerTrigger
+                    render={
+                      <Button
+                        size="lg"
+                        className="w-full sm:w-auto"
+                        type="button"
+                      />
+                    }
+                  >
+                    Continue
+                  </DrawerTrigger>
+                  <DrawerPopup showBar>
+                    <DrawerHeader className="text-center">
+                      <DrawerTitle>{playlist.playlist_name}</DrawerTitle>
+                      <DrawerDescription>
+                        {songs.length} track(s) · Ready to share
+                      </DrawerDescription>
+                    </DrawerHeader>
+                    <DrawerPanel>
+                      <div className="mx-auto grid max-w-[200px] grid-cols-2 gap-1">
+                        {Array.from({ length: 4 }, (_, idx) => {
+                          const url = songs[idx]?.image_url
+                          return (
+                            <div
+                              key={idx}
+                              className="aspect-square overflow-hidden rounded-lg bg-muted"
+                            >
+                              {url ? (
+                                <img
+                                  src={url}
+                                  alt=""
+                                  className="size-full object-cover"
+                                />
+                              ) : null}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </DrawerPanel>
+                    <DrawerFooter
+                      className="justify-center sm:justify-center"
+                      variant="bare"
+                    >
+                      <DrawerClose render={<Button variant="ghost" />}>
+                        Back
+                      </DrawerClose>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          console.log("[page] Share playlist (mock)", playlist.playlist_url)
+                        }}
+                      >
+                        Share
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          console.log("[page] Open App (mock)", playlist.playlist_url)
+                        }}
+                      >
+                        Open App
+                      </Button>
+                    </DrawerFooter>
+                  </DrawerPopup>
+                </Drawer>
               ) : null}
               <DrawerClose render={<Button variant="outline" />}>
                 {loading ? "Keep open" : "Close"}

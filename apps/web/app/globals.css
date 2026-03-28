@@ -127,3 +127,15 @@
     @apply font-sans;
     }
 }
+
+/* Song row entry — transform + opacity only, strong ease-out (design-eng) */
+@keyframes songIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
