@@ -1,21 +1,54 @@
-# Next.js template
+# ims-hackathon-2
 
-This is a Next.js template with shadcn/ui.
+Turborepo monorepo: Next.js frontend and Python (FastAPI) service.
 
-## Adding components
+## Structure
 
-To add components to your app, run the following command:
+- `apps/web` — Next.js 16 (App Router), shadcn/ui, Tailwind v4
+- `apps/python-service` — FastAPI + uv
+
+## Prerequisites
+
+- [pnpm](https://pnpm.io)
+- [uv](https://docs.astral.sh/uv/) (Python 3.12+)
+
+## Web app
+
+From the repository root:
 
 ```bash
-npx shadcn@latest add button
+pnpm install
+pnpm dev
 ```
 
-This will place the ui components in the `components` directory.
+Or filter to the web package:
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
+```bash
+pnpm --filter web dev
 ```
+
+Build, lint, and typecheck (via Turborepo):
+
+```bash
+pnpm build
+pnpm lint
+pnpm typecheck
+```
+
+### shadcn components
+
+Run from `apps/web`:
+
+```bash
+cd apps/web && pnpm exec shadcn@latest add button
+```
+
+## Python service
+
+```bash
+cd apps/python-service
+uv sync
+uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000
+```
+
+Health check: `GET http://localhost:8000/health`

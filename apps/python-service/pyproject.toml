@@ -1,0 +1,11 @@
+[project]
+name = "python-service"
+version = "0.1.0"
+description = "FastAPI backend for ims-hackathon-2"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi[standard]>=0.115.0",
+]
+
+[tool.uv]
+package = false
