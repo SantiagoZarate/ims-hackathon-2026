@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowSquareOut, Queue, Trash } from "@phosphor-icons/react"
+import { ArrowRight, ArrowSquareOut, Queue, Trash } from "@phosphor-icons/react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -214,8 +214,17 @@ export function HomePage() {
               value={youtubeUrl}
               onChange={(e) => setYoutubeUrl(e.target.value)}
               disabled={loading || !token}
-              className="h-auto min-h-14 w-full rounded-2xl px-5 py-4 text-base placeholder:text-muted-foreground/70 sm:min-h-16 sm:text-xl md:text-2xl md:py-5"
+              className="h-auto min-h-14 w-full rounded-2xl py-4 pl-5 pr-16 text-base placeholder:text-muted-foreground/70 sm:min-h-16 sm:text-xl md:text-2xl md:py-5"
             />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={loading || !token}
+              aria-label="Create playlist"
+              className="absolute right-3 top-1/2 size-12 -translate-y-1/2"
+            >
+              <ArrowRight className="size-6" weight="bold" />
+            </Button>
             {loading ? (
               <BorderBeam
                 size={300}
@@ -227,24 +236,13 @@ export function HomePage() {
             ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={loading || !token}
-              className="min-w-48 rounded-xl px-6"
-            >
-              {loading
-                ? (progressMsg ?? "Working…")
-                : "Create playlist"}
-            </Button>
             <Drawer open={libraryOpen} onOpenChange={setLibraryOpen} position="bottom">
               <DrawerTrigger
                 render={
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="icon-lg"
                     type="button"
-                    className="rounded-xl"
                     disabled={!token}
                     aria-label="Open playlist library"
                   />
