@@ -46,6 +46,14 @@ export function savePlaylist(entry: SavedPlaylist): void {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
 }
 
+export function deletePlaylist(id: string): SavedPlaylist[] {
+  const next = getHistory().filter((p) => p.id !== id)
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  }
+  return next
+}
+
 export function clearHistory(): void {
   if (typeof window === "undefined") return
   window.localStorage.removeItem(STORAGE_KEY)

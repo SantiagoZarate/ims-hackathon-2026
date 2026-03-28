@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowSquareOut, Queue } from "@phosphor-icons/react"
+import { ArrowSquareOut, Queue, Trash } from "@phosphor-icons/react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -28,6 +28,7 @@ import {
   type SseDoneEvent,
 } from "@/lib/api"
 import {
+  deletePlaylist,
   getHistory,
   savePlaylist,
   type SavedPlaylist,
@@ -54,6 +55,44 @@ export function HomePage() {
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [libraryItems, setLibraryItems] = useState<SavedPlaylist[]>([])
   const [historyTick, setHistoryTick] = useState(0)
+  const [removingId, setRemovingId] = useState<string | null>(null)
+
+  const handleDeletePlaylist = useCallback((id: string) => {
+    setRemovingId(id)
+    setTimeout(() => {
+      const next = deletePlaylist(id)
+      setLibraryItems(next)
+      setRemovingId(null)
+    }, 180)
+  }, [])
+
+  const handleSharePlaylist = useCallback(async (url: string, title: string) => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title, url })
+        return
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return
+      /* fall through to clipboard */
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      setError("Could not share or copy the playlist link.")
+    }
+  }, [])
+
+  const handleOpenInSpotify = useCallback(
+    (playlistId: string, fallbackUrl: string) => {
+      if (playlistId) {
+        window.location.href = `spotify:playlist:${playlistId}`
+        return
+      }
+      window.open(fallbackUrl, "_blank", "noopener,noreferrer")
+    },
+    [],
+  )
 
   useEffect(() => {
     const stored = getStoredAccessToken()
@@ -155,7 +194,7 @@ export function HomePage() {
   )
 
   return (
-    <main className="flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col items-center justify-center px-6 py-10">
+    <main className="relative flex min-h-[calc(100svh-3.5rem)] flex-1 flex-col items-center justify-center overflow-hidden px-6 py-10">
       <div className="flex w-full max-w-[805px] flex-col items-center gap-8 text-center">
         <form
           onSubmit={handleSubmit}
@@ -214,6 +253,7 @@ export function HomePage() {
                 <Queue className="size-5" weight="bold" />
               </DrawerTrigger>
               <DrawerPopup showBar className="h-[min(90vh,720px)]">
+                <div className="mx-auto flex w-full max-w-[805px] min-h-0 flex-1 flex-col">
                 <DrawerHeader>
                   <DrawerTitle>Library</DrawerTitle>
                   <DrawerDescription>
@@ -233,13 +273,21 @@ export function HomePage() {
                     >
                       <ul className="space-y-2 pb-2 text-left">
                         {libraryItems.map((item) => (
-                          <li key={item.id}>
+                          <li
+                            key={item.id}
+                            className={
+                              (removingId === item.id
+                                ? "animate-[itemOut_180ms_cubic-bezier(0.23,1,0.32,1)_forwards] "
+                                : "") +
+                              "flex items-stretch overflow-hidden rounded-xl border border-border/80 bg-muted/30"
+                            }
+                          >
                             <Drawer position="bottom">
                               <DrawerTrigger
                                 render={
                                   <button
                                     type="button"
-                                    className="flex w-full items-center gap-3 rounded-xl border border-border/80 bg-muted/30 p-3 text-left transition-colors hover:bg-muted/50"
+                                    className="flex flex-1 items-center gap-3 p-3 text-left transition-colors hover:bg-muted/50 min-w-0"
                                   />
                                 }
                               >
@@ -371,10 +419,7 @@ export function HomePage() {
                                     type="button"
                                     variant="outline"
                                     onClick={() => {
-                                      console.log(
-                                        "[page] Share playlist (mock)",
-                                        item.url
-                                      )
+                                      void handleSharePlaylist(item.url, item.name)
                                     }}
                                   >
                                     Share
@@ -382,11 +427,7 @@ export function HomePage() {
                                   <Button
                                     type="button"
                                     onClick={() => {
-                                      window.open(
-                                        item.url,
-                                        "_blank",
-                                        "noopener,noreferrer"
-                                      )
+                                      handleOpenInSpotify(item.id, item.url)
                                     }}
                                   >
                                     Open App
@@ -394,6 +435,15 @@ export function HomePage() {
                                 </DrawerFooter>
                               </DrawerPopup>
                             </Drawer>
+                            <button
+                              type="button"
+                              aria-label="Delete playlist"
+                              onClick={() => handleDeletePlaylist(item.id)}
+                              disabled={removingId === item.id}
+                              className="shrink-0 flex items-center justify-center border-l border-border/80 px-3 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+                            >
+                              <Trash className="size-4" weight="bold" />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -405,6 +455,7 @@ export function HomePage() {
                     Close
                   </DrawerClose>
                 </DrawerFooter>
+                </div>
               </DrawerPopup>
             </Drawer>
           </div>
@@ -428,6 +479,7 @@ export function HomePage() {
 
         <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} position="bottom">
           <DrawerPopup showBar className="h-[min(90vh,720px)]">
+            <div className="mx-auto flex w-full max-w-[805px] min-h-0 flex-1 flex-col">
             <DrawerHeader>
               <DrawerTitle>
                 {playlist?.playlist_name ?? "Songs found so far…"}
@@ -519,7 +571,8 @@ export function HomePage() {
                   >
                     Continue
                   </DrawerTrigger>
-                  <DrawerPopup showBar>
+                  <DrawerPopup showBar className="h-[min(72vh,720px)]">
+                    <div className="mx-auto flex w-full max-w-[805px] min-h-0 flex-1 flex-col">
                     <DrawerHeader className="text-center">
                       <DrawerTitle>{playlist.playlist_name}</DrawerTitle>
                       <DrawerDescription>
@@ -558,7 +611,10 @@ export function HomePage() {
                         type="button"
                         variant="outline"
                         onClick={() => {
-                          console.log("[page] Share playlist (mock)", playlist.playlist_url)
+                          void handleSharePlaylist(
+                            playlist.playlist_url,
+                            playlist.playlist_name,
+                          )
                         }}
                       >
                         Share
@@ -566,12 +622,16 @@ export function HomePage() {
                       <Button
                         type="button"
                         onClick={() => {
-                          console.log("[page] Open App (mock)", playlist.playlist_url)
+                          handleOpenInSpotify(
+                            playlist.playlist_id,
+                            playlist.playlist_url,
+                          )
                         }}
                       >
                         Open App
                       </Button>
                     </DrawerFooter>
+                    </div>
                   </DrawerPopup>
                 </Drawer>
               ) : null}
@@ -579,9 +639,25 @@ export function HomePage() {
                 {loading ? "Keep open" : "Close"}
               </DrawerClose>
             </DrawerFooter>
+            </div>
           </DrawerPopup>
         </Drawer>
 
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-0 right-0 select-none text-center leading-none animate-[mixtractFadeIn_1.8s_ease_0.4s_both]"
+      >
+        <span
+          className="font-heading inline-block translate-y-[38%] text-[18vw] font-bold tracking-tighter text-foreground/[0.05]"
+          style={{
+            maskImage: "linear-gradient(to bottom, black 10%, transparent 75%)",
+            WebkitMaskImage: "linear-gradient(to bottom, black 10%, transparent 75%)",
+          }}
+        >
+          Mixtract
+        </span>
       </div>
     </main>
   )

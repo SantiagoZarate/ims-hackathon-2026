@@ -139,3 +139,21 @@
     transform: translateY(0);
   }
 }
+
+/* App name watermark fade-in */
+@keyframes mixtractFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Playlist row exit — slides right + fades, system responding = snappy */
+@keyframes itemOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
