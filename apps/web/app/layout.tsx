@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono, Inter } from "next/font/google"
 
 import { LibraryProvider } from "@/components/library-context"
+import { OnboardingProvider } from "@/components/onboarding-context"
 import { SpotifySessionProvider } from "@/components/spotify-session-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TopBar } from "@/components/top-bar"
@@ -46,8 +47,10 @@ export default function RootLayout({
         <ThemeProvider>
           <SpotifySessionProvider>
             <LibraryProvider>
-              <TopBar />
-              {children}
+              <OnboardingProvider>
+                <TopBar />
+                {children}
+              </OnboardingProvider>
               <footer className="shrink-0 border-t border-border px-6 py-3">
                 <div className="mx-auto flex w-full max-w-[805px] items-center justify-between">
                   <p className="font-mono text-xs text-muted-foreground">

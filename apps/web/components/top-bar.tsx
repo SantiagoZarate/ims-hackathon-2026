@@ -1,9 +1,10 @@
 "use client"
 
-import { Queue } from "@phosphor-icons/react"
+import { Question, Queue } from "@phosphor-icons/react"
 import Link from "next/link"
 
 import { useLibrary } from "@/components/library-context"
+import { useOnboarding } from "@/components/onboarding-context"
 import { useSpotifySession } from "@/components/spotify-session-context"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils"
 export function TopBar() {
   const { token, hydrated, login, logout } = useSpotifySession()
   const { setLibraryOpen } = useLibrary()
+  const { setShowOnboarding } = useOnboarding()
 
   return (
     <header className="shrink-0 border-b border-border px-6">
@@ -25,6 +27,16 @@ export function TopBar() {
           <span className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none text-muted-foreground">
             v0.1
           </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="How Mixtract works"
+            className="size-8 shrink-0 text-muted-foreground"
+            onClick={() => setShowOnboarding(true)}
+          >
+            <Question className="size-5" weight="bold" />
+          </Button>
         </div>
 
         <div className="ml-auto flex items-center gap-3">

@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { useLibrary } from "@/components/library-context"
+import { useOnboarding } from "@/components/onboarding-context"
 import { OnboardingOverlay } from "@/components/onboarding-overlay"
 import { PlatformLogos } from "@/components/platform-logos"
 import { useSpotifySession } from "@/components/spotify-session-context"
@@ -58,14 +59,13 @@ export function HomePage() {
   const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null)
   const songsRef = useRef<AnalyzeSong[]>([])
   const { libraryOpen, setLibraryOpen } = useLibrary()
+  const { showOnboarding, setShowOnboarding } = useOnboarding()
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false)
+  }, [setShowOnboarding])
   const [libraryItems, setLibraryItems] = useState<SavedPlaylist[]>([])
   const [historyTick, setHistoryTick] = useState(0)
   const [removingId, setRemovingId] = useState<string | null>(null)
-  const [showOnboarding, setShowOnboarding] = useState(true)
-
-  const dismissOnboarding = useCallback(() => {
-    setShowOnboarding(false)
-  }, [])
 
   const handleDeletePlaylist = useCallback((id: string) => {
     setRemovingId(id)
