@@ -51,3 +51,5 @@ __pycache__/
 venv/
 ENV/
 .uv/
+apps/python-service/.env
+apps/web/.env
